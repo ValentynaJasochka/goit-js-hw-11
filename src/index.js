@@ -36,21 +36,32 @@ function handlerPagination(entries) {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
       page += 1;
-      fetchCollection(searchNameForPhotos, page, perPage).then(data => {
-        const searchResults = data.hits;
-        createMarkup(searchResults);
-        lightbox.refresh();
-      });
+      fetchCollection((searchNameForPhotos = 'dog'), page, perPage)
+        .then(data => {
+          console.dir(data);
+          const searchResults = data.hits;
+          createMarkup(searchResults);
+          lightbox.refresh();
+          if (data.totalHits / 40 < page) {
+            observer.unobserve(guard);
+            Notify.failure(
+              "We're sorry, but you've reached the end of search results.",
+              {
+                position: 'right-bottom',
+                timeout: 2000,
+                width: '250px',
+              }
+            );
+          }
+        })
+        .catch(err => console.log(err));
     }
   });
 }
 
 // прослуховувач подій
-// searchForm.addEventListener('change', setOutput);
+
 searchForm.addEventListener('submit', handlerFormCollection);
-// function setOutput(evt) {
-//   console.dir(evt.currentTarget);
-// }
 
 function handlerFormCollection(evt) {
   evt.preventDefault();
@@ -90,6 +101,5 @@ function handlerFormCollection(evt) {
 }
 
 function fetchError() {
-  //   console.dir(err);
   Notify.failure('Oops! Something went wrong!', paramsForNotify);
 }
