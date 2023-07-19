@@ -1,1 +1,0 @@
-{"mappings":"AAAAA,QAAQC,IAAI,SACZD,QAAQE,IAAI,CAAEC,IAAK","sources":["src/index.js"],"sourcesContent":["console.log('hello');\nconsole.dir({ key: 'follingn' });\n"],"names":["console","log","dir","key"],"version":3,"file":"index.bf392fd1.js.map"}
