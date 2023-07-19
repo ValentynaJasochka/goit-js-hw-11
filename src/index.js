@@ -1,77 +1,62 @@
-import { fetchBreeds, fetchCatByBreed } from './cat-api';
-import SlimSelect from 'slim-select';
-import 'slim-select/dist/slimselect.css';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
+import { fetchCollection } from './js/pixabey';
+// Описаний в документації
+import SimpleLightbox from 'simplelightbox';
+// Додатковий імпорт стилів
+import 'simplelightbox/dist/simple-lightbox.min.css';
 
-const refs = {
-  selector: document.querySelector('.breed-select'),
-  boxCatInfo: document.querySelector('.cat-info'),
-  loader: document.querySelector('.loader'),
-  error: document.querySelector('.error'),
+let lightbox = new SimpleLightbox('.img a', {
+  captionsData: 'alt',
+});
+import { createMarkup } from './js/markup';
+import { refs } from './js/refs';
+
+const { searchForm, searchBTN, galery } = refs;
+const page = 1;
+const perPage = 40;
+
+const paramsForNotify = {
+  position: 'right-top',
+  timeout: 2000,
+  width: '250px',
 };
 
-console.dir(refs.selector);
+searchForm.addEventListener('submit', handlerFormCollection);
 
-refs.error.classList.add('is-hidden');
-// refs.boxCatInfo.classList.add('is-hidden');
-
-let selectorsName = [{ placeholder: true, text: '' }];
-
-fetchBreeds()
-  .then(date => {
-    refs.loader.classList.add('is-hidden');
-
-    date.forEach(element => {
-      selectorsName.push({ text: element.name, value: element.id });
-    });
-    new SlimSelect({
-      select: refs.selector,
-      data: selectorsName,
-    });
-  })
-  .catch(err => fetchError(err));
-
-refs.selector.addEventListener('change', demonstrateBreed);
-
-function demonstrateBreed(event) {
-  event.preventDefault();
-  const breedId = event.currentTarget.value;
-  if (!breedId) {
+function handlerFormCollection(evt) {
+  evt.preventDefault();
+  console.dir(evt);
+  let page = 1;
+  const searchNameForPhotos = evt.srcElement[0].value.trim().toLowerCase();
+  if (!searchNameForPhotos) {
+    Notify.failure(
+      'Sorry, there are no images matching your search query. Please try again.',
+      paramsForNotify
+    );
     return;
   }
-  refs.loader.classList.remove('is-hidden');
-  refs.selector.hidden = true;
-  refs.boxCatInfo.classList.add('is-hidden');
-
-  fetchCatByBreed(breedId)
+  fetchCollection(searchNameForPhotos, page, perPage)
     .then(data => {
-      refs.loader.classList.add('is-hidden');
-      refs.selector.hidden = false;
-      refs.boxCatInfo.classList.remove('is-hidden');
-      refs.boxCatInfo.innerHTML = `<div>
-      <img src="${data[0].url}" alt="${data[0].breeds[0].name}" width="400" heigth="400"/>
-      </div>
-      <div>
-      <h1>${data[0].breeds[0].name}</h1>
-      <p>${data[0].breeds[0].description}</p>
-      <p><b>Temperament:</b> ${data[0].breeds[0].temperament}</p>
-      </div>`;
+      const searchResults = data.hits;
+      if (data.totalHits === 0) {
+        Notify.failure(
+          'Sorry, there are no images matching your search query. Please try again.',
+          paramsForNotify
+        );
+      } else {
+        Notify.info(
+          `Hooray! We found ${data.totalHits} images.`,
+          paramsForNotify
+        );
+        console.log(searchResults);
+        createMarkup(searchResults);
+        lightbox.refresh();
+      }
     })
-    .catch(err => fetchError(err));
+    .catch(fetchError)
+    .finally(searchForm.reset());
 }
 
-function fetchError(error) {
-  refs.selector.hidden = false;
-  refs.loader.classList.add('is-hidden');
-  refs.boxCatInfo.classList.add('is-hidden');
-
-  Notify.failure(
-    'Oops! Something went wrong! Try reloading the page or select another cat breed!',
-    {
-      position: 'center-center',
-      timeout: 3000,
-      width: '400px',
-      fontSize: '24px',
-    }
-  );
+function fetchError() {
+  Notify.failure('Oops! Something went wrong!', paramsForNotify);
 }
