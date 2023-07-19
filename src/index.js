@@ -11,8 +11,9 @@ let lightbox = new SimpleLightbox('.img a', {
 import { createMarkup } from './js/markup';
 import { refs } from './js/refs';
 
-const { searchForm, searchBTN, galery } = refs;
-const page = 1;
+const { searchForm, searchBTN, gallery, guard } = refs;
+
+let page = 1;
 const perPage = 40;
 
 const paramsForNotify = {
@@ -21,11 +22,39 @@ const paramsForNotify = {
   width: '250px',
 };
 
+// Безкінечний скрол
+const options = {
+  root: null,
+  rootMargin: '400px',
+  threshold: 0,
+};
+
+const observer = new IntersectionObserver(handlerPagination, options);
+
+function handlerPagination(entries) {
+  console.log(entries);
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      page += 1;
+      fetchCollection(searchNameForPhotos, page, perPage).then(data => {
+        const searchResults = data.hits;
+        createMarkup(searchResults);
+        lightbox.refresh();
+      });
+    }
+  });
+}
+
+// прослуховувач подій
+// searchForm.addEventListener('change', setOutput);
 searchForm.addEventListener('submit', handlerFormCollection);
+// function setOutput(evt) {
+//   console.dir(evt.currentTarget);
+// }
 
 function handlerFormCollection(evt) {
   evt.preventDefault();
-  console.dir(evt);
+  gallery.innerHTML = '';
   let page = 1;
   const searchNameForPhotos = evt.srcElement[0].value.trim().toLowerCase();
   if (!searchNameForPhotos) {
@@ -48,15 +77,19 @@ function handlerFormCollection(evt) {
           `Hooray! We found ${data.totalHits} images.`,
           paramsForNotify
         );
-        console.log(searchResults);
+
         createMarkup(searchResults);
         lightbox.refresh();
+        observer.observe(guard);
       }
     })
     .catch(fetchError)
-    .finally(searchForm.reset());
+    .finally(() => {
+      searchForm.reset();
+    });
 }
 
 function fetchError() {
+  //   console.dir(err);
   Notify.failure('Oops! Something went wrong!', paramsForNotify);
 }
