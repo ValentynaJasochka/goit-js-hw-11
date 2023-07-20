@@ -32,11 +32,7 @@ const options = {
 const observer = new IntersectionObserver(handlerPagination, options);
 
 async function handlerPagination(entries) {
-  //   console.log(entries[0].isIntersecting);
-  //   page = 1;
-  entries[0].isIntersecting = false;
   if (entries[0].isIntersecting) {
-    // console.log(entries[0].isIntersecting);
     page += 1;
     try {
       const collection = await fetchCollection(
@@ -49,7 +45,7 @@ async function handlerPagination(entries) {
       createMarkup(searchResults);
       lightbox.refresh();
       if (numberOfPage === page) {
-        // observer.unobserve(guard);
+        observer.unobserve(guard);
         Notify.failure(
           "We're sorry, but you've reached the end of search results.",
           {
@@ -73,7 +69,7 @@ async function handlerFormCollection(evt) {
   evt.preventDefault();
   observer.unobserve(guard);
   gallery.innerHTML = '';
-  let page = 1;
+  page = 1;
   searchNameForPhotos = evt.srcElement[0].value.trim().toLowerCase();
   if (!searchNameForPhotos) {
     Notify.failure(
