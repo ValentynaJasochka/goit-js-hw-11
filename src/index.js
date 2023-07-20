@@ -1,18 +1,18 @@
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import { fetchCollection } from './js/pixabey';
-// Описаний в документації
-import SimpleLightbox from 'simplelightbox';
-// Додатковий імпорт стилів
-import 'simplelightbox/dist/simple-lightbox.min.css';
-
-let lightbox = new SimpleLightbox('.img a', {
-  captionsData: 'alt',
-});
 import { createMarkup } from './js/markup';
 import { refs } from './js/refs';
 
-const { searchForm, searchBTN, gallery, guard } = refs;
+//simpleightbox library connection
+import SimpleLightbox from 'simplelightbox';
+import 'simplelightbox/dist/simple-lightbox.min.css';
+let lightbox = new SimpleLightbox('.img a', {
+  captionsData: 'alt',
+});
 
+//variables initialization
+const { searchForm, gallery, guard } = refs;
+let searchNameForPhotos = '';
 let page = 1;
 const perPage = 40;
 
@@ -31,43 +31,47 @@ const options = {
 
 const observer = new IntersectionObserver(handlerPagination, options);
 
-function handlerPagination(entries) {
-  console.log(entries);
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      page += 1;
-      fetchCollection((searchNameForPhotos = 'dog'), page, perPage)
-        .then(data => {
-          console.dir(data);
-          const searchResults = data.hits;
-          createMarkup(searchResults);
-          lightbox.refresh();
-          if (data.totalHits / 40 < page) {
-            observer.unobserve(guard);
-            Notify.failure(
-              "We're sorry, but you've reached the end of search results.",
-              {
-                position: 'right-bottom',
-                timeout: 2000,
-                width: '250px',
-              }
-            );
+async function handlerPagination(entries) {
+  //   console.log(entries);
+
+  if (entries[0].isIntersecting) {
+    page += 1;
+    try {
+      const collection = await fetchCollection(
+        searchNameForPhotos,
+        page,
+        perPage
+      );
+      const searchResults = collection.hits;
+      const numberOfPage = Math.ceil(collection.totalHits / perPage);
+      createMarkup(searchResults);
+      lightbox.refresh();
+      if (numberOfPage === page) {
+        observer.unobserve(guard);
+        Notify.failure(
+          "We're sorry, but you've reached the end of search results.",
+          {
+            position: 'right-bottom',
+            timeout: 4000,
+            width: '250px',
           }
-        })
-        .catch(err => console.log(err));
+        );
+      }
+    } catch (err) {
+      console.log(err);
     }
-  });
+  }
 }
 
 // прослуховувач подій
 
 searchForm.addEventListener('submit', handlerFormCollection);
 
-function handlerFormCollection(evt) {
+async function handlerFormCollection(evt) {
   evt.preventDefault();
   gallery.innerHTML = '';
   let page = 1;
-  const searchNameForPhotos = evt.srcElement[0].value.trim().toLowerCase();
+  searchNameForPhotos = evt.srcElement[0].value.trim().toLowerCase();
   if (!searchNameForPhotos) {
     Notify.failure(
       'Sorry, there are no images matching your search query. Please try again.',
@@ -75,29 +79,34 @@ function handlerFormCollection(evt) {
     );
     return;
   }
-  fetchCollection(searchNameForPhotos, page, perPage)
-    .then(data => {
-      const searchResults = data.hits;
-      if (data.totalHits === 0) {
-        Notify.failure(
-          'Sorry, there are no images matching your search query. Please try again.',
-          paramsForNotify
-        );
-      } else {
-        Notify.info(
-          `Hooray! We found ${data.totalHits} images.`,
-          paramsForNotify
-        );
+  try {
+    const collection = await fetchCollection(
+      searchNameForPhotos,
+      page,
+      perPage
+    );
 
-        createMarkup(searchResults);
-        lightbox.refresh();
-        observer.observe(guard);
-      }
-    })
-    .catch(fetchError)
-    .finally(() => {
-      searchForm.reset();
-    });
+    const searchResults = collection.hits;
+    if (collection.totalHits === 0) {
+      Notify.failure(
+        'Sorry, there are no images matching your search query. Please try again.',
+        paramsForNotify
+      );
+    } else {
+      Notify.info(
+        `Hooray! We found ${collection.totalHits} images.`,
+        paramsForNotify
+      );
+
+      createMarkup(searchResults);
+      lightbox.refresh();
+      observer.observe(guard);
+    }
+  } catch {
+    fetchError();
+  }
+
+  searchForm.reset();
 }
 
 function fetchError() {
